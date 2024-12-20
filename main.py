@@ -134,7 +134,7 @@ if app_mode == "Analyze Headline":
                     
                     # Only use ClaimBuster if flagged as fake
                     if auth_result.get('is_fake', False):
-                        st.info("🔍 Checking claim with ClaimBuster...")
+                        st.info("🔍 Veryfying Flagged Content With Exteranl API")
                         claimbuster_result = check_claim(text)
                         
                         if "error" in claimbuster_result:
@@ -180,7 +180,7 @@ if app_mode == "Analyze Headline":
                         
                         # Only use ClaimBuster if flagged as fake
                         if auth_result.get('is_fake', False):
-                            st.info("🔍 Checking claim with ClaimBuster...")
+                            st.info("🔍 Veryfying Flagged Content With Exteranl API")
                             claimbuster_result = check_claim(extracted_text)
                             
                             if "error" in claimbuster_result:
@@ -230,7 +230,7 @@ if app_mode == "Analyze Headline":
                         
                         # Only use ClaimBuster if flagged as fake
                         if auth_result.get('is_fake', False):
-                            st.info("🔍 Checking claim with ClaimBuster...")
+                            st.info("🔍 Veryfying Flagged Content With Exteranl API")
                             claimbuster_result = check_claim(text)
                             
                             if "error" in claimbuster_result:
@@ -273,7 +273,7 @@ if st.button("Fetch Top Headlines"):
                     
                     # Only use ClaimBuster if flagged as fake
                     if auth_result.get('is_fake', False):
-                        st.info("🔍 Checking claim with ClaimBuster...")
+                        st.info("🔍 Veryfying Flagged Content With Exteranl API")
                         claimbuster_result = check_claim(headline)
                         if "error" in claimbuster_result:
                             st.error(f"Error analyzing headline {idx} with ClaimBuster: {claimbuster_result['error']}")
