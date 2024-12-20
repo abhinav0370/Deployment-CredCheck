@@ -4,8 +4,9 @@ import torch
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 import streamlit as st
-# Constants
+import logging
 
+# Constants
 GOOGLE_API_KEY = st.secrets["google"]["search_api_key"]
 CUSTOM_SEARCH_ENGINE_ID = st.secrets["google"]["search_engine_id"]
 
@@ -35,7 +36,7 @@ def google_search(query, num_results=5):
     if response.status_code == 200:
         results = response.json().get("items", [])
         return [
-            {"title": item["title"], "snippet": item["snippet"], "link": item["link"]}
+            {"title": item.get("title", ""), "snippet": item.get("snippet", ""), "link": item.get("link", "")}
             for item in results[:num_results]
         ]
     else:
