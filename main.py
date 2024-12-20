@@ -6,8 +6,8 @@ from convert_to_english import translation
 from cred_check import fake_news_detector
 from claimbuster_check import check_claim
 from top_headlines import fetch_headlines
-from img_to_text import extract_text_from_image
-from video_to_audio import extract_audio
+from img_to_text import extract_text_from_image  # Import the image text extraction function
+from video_to_audio import extract_audio  # Import the video to audio function
 
 # Set page configuration for a modern layout
 st.set_page_config(
@@ -244,28 +244,31 @@ if st.button("Fetch Top Headlines"):
                 for idx, headline in enumerate(headlines_to_analyze, start=1):
                     st.write(f"**Headline {idx}:** {headline}")
                     
-                    auth_result = fake_news_detector(headline)
-                    st.write(f"**CredCheck Classification:** {classify_auth(auth_result.get('is_fake', False))}")
-                    
-                    # Only use ClaimBuster if flagged as fake
-                    if auth_result.get('is_fake', False):
-                        if not is_english(headline):
-                            st.info("🔄 Translating to English for ClaimBuster...")
-                            headline = translation(headline)
-                            st.success(f"**Translated Text:** {headline}")
-                        st.info("🔍 Veryfying Flagged Content With Exteranl API")
-                        claimbuster_result = check_claim(headline)
-                        if "error" in claimbuster_result:
-                            st.error(f"Error analyzing headline {idx} with ClaimBuster: {claimbuster_result['error']}")
+                    try:
+                        auth_result = fake_news_detector(headline)
+                        st.write(f"**CredCheck Classification:** {classify_auth(auth_result.get('is_fake', False))}")
+                        
+                        # Only use ClaimBuster if flagged as fake
+                        if auth_result.get('is_fake', False):
+                            if not is_english(headline):
+                                st.info("🔄 Translating to English for ClaimBuster...")
+                                headline = translation(headline)
+                                st.success(f"**Translated Text:** {headline}")
+                            st.info("🔍 Veryfying Flagged Content With Exteranl API")
+                            claimbuster_result = check_claim(headline)
+                            if "error" in claimbuster_result:
+                                st.error(f"Error analyzing headline {idx} with ClaimBuster: {claimbuster_result['error']}")
+                            else:
+                                for result in claimbuster_result["results"]:
+                                    score = result["score"]
+                                    classification = classify_claim(score)
+                                    st.write(f"**Claim:** {result['text']}")
+                                    st.write(f"**Score:** {score}")
+                                    st.write(f"**ClaimBuster Classification:** {classification}")
                         else:
-                            for result in claimbuster_result["results"]:
-                                score = result["score"]
-                                classification = classify_claim(score)
-                                st.write(f"**Claim:** {result['text']}")
-                                st.write(f"**Score:** {score}")
-                                st.write(f"**ClaimBuster Classification:** {classification}")
-                    else:
-                        st.success("✅ The news is classified as real.")
+                            st.success("✅ The news is classified as real.")
+                    except Exception as e:
+                        st.error(f"Error analyzing headline {idx}: {e}")
                     st.markdown("---")
         else:
             st.error(headlines.get("error", "⚠️ An error occurred."))
