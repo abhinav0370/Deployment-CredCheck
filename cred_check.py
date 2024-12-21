@@ -7,10 +7,10 @@ import streamlit as st
 import logging
 
 # Constants
-GOOGLE_API_KEY = "AIzaSyCrxwQBK73bVudY5D_0fcfGsRgwQPZma7w"
-#  st.secrets["google"]["search_api_key"]
-CUSTOM_SEARCH_ENGINE_ID = "d0be94b8c90a94789"
-#st.secrets["google"]["search_engine_id"]
+GOOGLE_API_KEY = st.secrets["google"]["search_api_key"]
+  
+CUSTOM_SEARCH_ENGINE_ID = st.secrets["google"]["search_engine_id"]
+
 
 TRUSTED_SOURCES = [
     "bbc.com", "reuters.com", "apnews.com", "snopes.com", "theguardian.com", "nytimes.com", "washingtonpost.com",
