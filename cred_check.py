@@ -1,5 +1,5 @@
 import requests
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
@@ -7,8 +7,10 @@ import streamlit as st
 import logging
 
 # Constants
-GOOGLE_API_KEY = st.secrets["google"]["search_api_key"]
-CUSTOM_SEARCH_ENGINE_ID = st.secrets["google"]["search_engine_id"]
+GOOGLE_API_KEY = "AIzaSyCrxwQBK73bVudY5D_0fcfGsRgwQPZma7w"
+#  st.secrets["google"]["search_api_key"]
+CUSTOM_SEARCH_ENGINE_ID = "d0be94b8c90a94789"
+#st.secrets["google"]["search_engine_id"]
 
 TRUSTED_SOURCES = [
     "bbc.com", "reuters.com", "apnews.com", "snopes.com", "theguardian.com", "nytimes.com", "washingtonpost.com",
@@ -22,15 +24,36 @@ TRUSTED_SOURCES = [
 
 # Initialize the tokenizer and model for BERT
 tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-model = AutoModel.from_pretrained("bert-base-uncased")
+model_path = "./fake_news_detector_model"  # Adjust the path as needed if it's not in the current working directory
+model = AutoModelForSequenceClassification.from_pretrained(model_path)  # Use your model path
+model.eval()  # Set the model to evaluation mode
+
 
 def get_embeddings(text):
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True)
-    outputs = model(**inputs)
+    """
+    Generates embeddings for the given text using BERT.
+    """
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
+    with torch.no_grad():
+        outputs = model.base_model(**inputs)
     embeddings = torch.mean(outputs.last_hidden_state, dim=1)
     return embeddings.detach().numpy()
 
+def predict_confidence(headline):
+    """
+    Predicts the confidence score of the headline being true using the trained BERT model.
+    """
+    inputs = tokenizer(headline, return_tensors="pt", truncation=True, padding=True, max_length=512)
+    with torch.no_grad():
+        outputs = model(**inputs)
+        probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+        confidence_score = probs[0][1].item()  # Assuming index 1 corresponds to the 'true' class
+    return confidence_score
+
 def google_search(query, num_results=5):
+    """
+    Performs a Google search using the Custom Search API.
+    """
     url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={GOOGLE_API_KEY}&cx={CUSTOM_SEARCH_ENGINE_ID}"
     response = requests.get(url)
     if response.status_code == 200:
@@ -43,12 +66,18 @@ def google_search(query, num_results=5):
         return {"error": f"Error {response.status_code}: {response.text}"}
 
 def check_trusted_source(link):
+    """
+    Checks if the link is from a trusted source.
+    """
     for source in TRUSTED_SOURCES:
         if source in link:
             return True
     return False
 
 def calculate_similarity(headline, search_results):
+    """
+    Calculates the cosine similarity between the headline and each search result.
+    """
     headline_emb = get_embeddings(headline)
     similarities = []
 
@@ -61,6 +90,9 @@ def calculate_similarity(headline, search_results):
     return similarities
 
 def enhance_credibility_score(link, headline):
+    """
+    Enhances the credibility score based on the source and headline content.
+    """
     credibility_score = 0
 
     if check_trusted_source(link):
@@ -74,6 +106,9 @@ def enhance_credibility_score(link, headline):
     return credibility_score
 
 def fake_news_detector(headline):
+    """
+    Detects whether the given headline is fake news based on similarity, credibility, and confidence score.
+    """
     search_results = google_search(headline.strip())
     if isinstance(search_results, dict) and "error" in search_results:
         return search_results
@@ -82,14 +117,25 @@ def fake_news_detector(headline):
     credibility_scores = [
         enhance_credibility_score(result["link"], result["title"]) for result in search_results
     ]
+    confidence_score = predict_confidence(headline)
 
     average_similarity = float(np.mean(similarities)) if similarities else 0
     average_credibility = float(np.mean(credibility_scores)) if credibility_scores else 0
-    is_fake = (average_similarity < 0.75) and (average_credibility <= 0.01)
+
+    # Integrate confidence_score into the is_fake determination
+    # Adjust the thresholds as per your requirement
+    is_fake = (average_similarity < 0.75) and (average_credibility <= 0.01) and (confidence_score <= 0.0)
 
     return {
         "headline": headline,
         "average_similarity": average_similarity,
         "average_credibility": average_credibility,
+        "confidence_score": confidence_score,
         "is_fake": bool(is_fake),
     }
+
+# Example usage:
+if __name__ == "__main__":
+    test_headline = "Breaking News: Scientists Discover Cure for Common Cold"
+    result = fake_news_detector(test_headline)
+    print(result)
