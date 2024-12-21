@@ -25,57 +25,27 @@ TRUSTED_SOURCES = [
     "dw.com", "indianexpress.com", "dailymail.co.uk", "smh.com.au", "mint.com", "livemint.com"
 ]
 
-@st.cache_resource
-def load_models():
-    """
-    Loads and caches the tokenizer, base BERT model, and custom confidence model.
-    """
-    try:
-        # Initialize the tokenizer (shared between both models)
-        tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-        logger.info("Tokenizer loaded successfully.")
-        
-        # Initialize the base BERT model for embeddings
-        base_model = AutoModel.from_pretrained("bert-base-uncased")
-        base_model.eval()  # Set to evaluation mode
-        logger.info("Base BERT model loaded successfully.")
-        
-        # Initialize the custom classification model for confidence scores
-        custom_model_path = Path("./fake_news_detector_model")  # Adjust the path as needed
-        confidence_model = AutoModelForSequenceClassification.from_pretrained(custom_model_path)
-        confidence_model.eval()  # Set to evaluation mode
-        logger.info(f"Custom confidence model loaded successfully from {custom_model_path.resolve()}")
-        
-        return tokenizer, base_model, confidence_model
-    except Exception as e:
-        logger.error(f"Failed to load models: {e}")
-        st.stop()
+# Initialize the tokenizer (shared between both models)
+tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
 
-# Load models with caching
-tokenizer, base_model, confidence_model = load_models()
+# Initialize the base BERT model for embeddings
+try:
+    base_model = AutoModel.from_pretrained("bert-base-uncased")
+    base_model.eval()  # Set to evaluation mode
+    logger.info("Base BERT model loaded successfully.")
+except Exception as e:
+    logger.error(f"Failed to load the base BERT model: {e}")
+    st.stop()
 
-@st.cache_data
-def google_search(query, num_results=5):
-    """
-    Performs a Google search using the Custom Search API and caches the results.
-    """
-    try:
-        url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={GOOGLE_API_KEY}&cx={CUSTOM_SEARCH_ENGINE_ID}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            results = response.json().get("items", [])
-            logger.info(f"Received {len(results)} search results for query '{query}'.")
-            return [
-                {"title": item.get("title", ""), "snippet": item.get("snippet", ""), "link": item.get("link", "")}
-                for item in results[:num_results]
-            ]
-        else:
-            error_message = f"Error {response.status_code}: {response.text}"
-            logger.error(error_message)
-            return {"error": error_message}
-    except Exception as e:
-        logger.error(f"Exception during Google search: {e}")
-        return {"error": str(e)}
+# Initialize your custom classification model for confidence scores
+try:
+    custom_model_path = Path("./fake_news_detector_model")  # Adjust the path as needed
+    confidence_model = AutoModelForSequenceClassification.from_pretrained(custom_model_path)
+    confidence_model.eval()  # Set to evaluation mode
+    logger.info(f"Custom confidence model loaded successfully from {custom_model_path.resolve()}")
+except Exception as e:
+    logger.error(f"Failed to load the custom confidence model: {e}")
+    st.stop()
 
 def get_embeddings(text):
     """
@@ -119,6 +89,28 @@ def predict_confidence(headline):
     except Exception as e:
         logger.error(f"Error predicting confidence for headline '{headline}': {e}")
         return 0.0  # Return a default low confidence score in case of failure
+
+def google_search(query, num_results=5):
+    """
+    Performs a Google search using the Custom Search API.
+    """
+    try:
+        url = f"https://www.googleapis.com/customsearch/v1?q={query}&key={GOOGLE_API_KEY}&cx={CUSTOM_SEARCH_ENGINE_ID}"
+        response = requests.get(url)
+        if response.status_code == 200:
+            results = response.json().get("items", [])
+            logger.info(f"Received {len(results)} search results for query '{query}'.")
+            return [
+                {"title": item.get("title", ""), "snippet": item.get("snippet", ""), "link": item.get("link", "")}
+                for item in results[:num_results]
+            ]
+        else:
+            error_message = f"Error {response.status_code}: {response.text}"
+            logger.error(error_message)
+            return {"error": error_message}
+    except Exception as e:
+        logger.error(f"Exception during Google search: {e}")
+        return {"error": str(e)}
 
 def check_trusted_source(link):
     """
@@ -229,32 +221,8 @@ def fake_news_detector(headline):
         logger.error(f"Error in fake_news_detector: {e}")
         return {"error": str(e)}
 
-# Streamlit App Interface
-def main():
-    st.title("Fake News Detector")
-    
-    # User input for headline
-    headline = st.text_input("Enter a news headline to analyze:", "")
-    
-    if st.button("Analyze"):
-        if headline:
-            with st.spinner("Analyzing..."):
-                result = fake_news_detector(headline)
-            
-            if "error" in result:
-                st.error(f"An error occurred: {result['error']}")
-            else:
-                st.success(f"**Headline:** {result['headline']}")
-                st.write(f"**Average Similarity:** {result['average_similarity']:.4f}")
-                st.write(f"**Average Credibility:** {result['average_credibility']:.4f}")
-                st.write(f"**Confidence Score:** {result['confidence_score']:.4f}")
-                
-                if result["is_fake"]:
-                    st.warning("**This headline is likely FAKE NEWS.**")
-                else:
-                    st.success("**This headline is likely REAL NEWS.**")
-        else:
-            st.warning("Please enter a headline to analyze.")
-
+# Example usage:
 if __name__ == "__main__":
-    main()
+    test_headline = "Breaking News: Scientists Discover Cure for Common Cold"
+    result = fake_news_detector(test_headline)
+    print(result)
